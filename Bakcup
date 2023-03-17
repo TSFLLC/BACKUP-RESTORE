@@ -1,0 +1,3 @@
+BACKUP DATABASE [DBName] TO  DISK = 'F:\Backup\DBName.BAK' WITH COMPRESSION, STATS = 5
+
+BACKUP Log [DBName] TO  DISK = 'F:\Backup\DBName.BAK',

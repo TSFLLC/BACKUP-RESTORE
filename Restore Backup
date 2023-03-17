@@ -1,0 +1,10 @@
+use master
+go
+Restore database[TestDB] from disk ='C:\Backup.bak' With file =1,
+ move 'TestDB' to 'C:\MSSQL\DATA\TestDB.mdf',
+ move 'TestDB_log' to 'C:\MSSQL\DATA\TestDB_log.ldf', 
+ NORECOVERY, REPLACE,  NOUNLOAD,  STATS = 5
+ 
+ 
+ 
+ RESTORE DATABASE [FLXMI2] FROM  DISK = N'C:\Backup.Diff'  WITH  FILE = 1,   NORECOVERY,  STATS = 5

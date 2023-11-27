@@ -1,0 +1,32 @@
+	DECLARE @Layer VARCHAR(30); SET  @Layer = '[CMSServerLayer]'
+
+DECLARE @dt CHAR(8);
+SET  @dt =CONVERT(CHAR(8),DATEADD(dd,-360,GETDATE()-30),112)  
+ --SET  @dt >= '2023-05-01 20:00:00.000' AND @dt =< '2023-09-30 20:00:00.000'
+SELECT
+CONVERT(varchar(128),@@SERVERNAME) As Servername,
+SUBSTRING(T2.name,1,140) AS [SQL Job Name],
+--msdb.dbo.agent_datetime(run_date, run_time) as 'RunDateTime',
+COUNT(*) AS TotalFailures,
+CAST(MIN(CONVERT(DATETIME,CAST(run_date AS CHAR(8)),101)) AS CHAR(11)) AS [MinFailure Date],
+MAX(msdb.dbo.agent_datetime(T1.run_date, T1.run_time)) AS 'RunDateTime',
+MIN(T1.run_duration) StepDuration,
+CASE MIN(T1.run_status)
+WHEN 0 THEN 'Failed'
+WHEN 1 THEN 'Succeeded'
+WHEN 2 THEN 'Retry'
+WHEN 3 THEN 'Cancelled'
+WHEN 4 THEN 'In Progress'
+END AS ExecutionStatus
+
+FROM
+msdb..sysjobhistory T1 INNER JOIN msdb..sysjobs T2 ON T1.job_id = T2.job_id
+WHERE
+T1.run_status NOT IN (1,2,4,3)
+AND T1.step_id != 0
+AND run_date >= @dt
+--AND T1.run_date < '2023-09-30 00:00:00.000'
+and T2.name like '%Backup%'
+GROUP BY 
+  T1.step_name,
+  T2.name

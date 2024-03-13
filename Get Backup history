@@ -21,3 +21,20 @@ msdb.dbo.agent_datetime(run_date, run_time)
  --< '2023-09-30 00:00:00.000'
 BETWEEN '2023-05-01 ' and '2023-09-30 '  --Uncomment for date range queries
 order by JobName, RunDateTime desc
+
+
+
+
+------------------------------------------------------------------------------------------------
+
+SELECT
+distinct database_name ,
+        backup_start_date ,
+        b.media_set_id, physical_device_name
+FROM    msdb..backupfile a
+        INNER JOIN msdb..backupset b ON a.backup_set_id = b.backup_set_id
+        INNER JOIN msdb..backupmediafamily c ON c.media_set_id = b.media_set_id
+WHERE  backup_start_date > '1/1/2023' 
+        AND 
+        type = 'D'
+order by  backup_start_date desc

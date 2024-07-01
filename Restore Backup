@@ -7,4 +7,4 @@ Restore database[TestDB] from disk ='C:\Backup.bak' With file =1,
  
  
  
- RESTORE DATABASE [FLXMI2] FROM  DISK = N'C:\Backup.Diff'  WITH  FILE = 1,   NORECOVERY,  STATS = 5
+ RESTORE DATABASE [Test] FROM  DISK = N'C:\Backup.Diff'  WITH  FILE = 1,   NORECOVERY,  STATS = 5

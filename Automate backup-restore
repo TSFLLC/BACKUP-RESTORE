@@ -1,0 +1,143 @@
+-- REPLACE THE FOLLOWING PARAMETERS:
+-- @DBName = Database Name
+-- @StopAtTime = End Time of Restore  !!! NOTE:  THIS IS THE STOPAT TIME FOR THE RESTORE
+--@path
+--@bak_filename 
+--@diff_filename 
+
+
+/************************************************************************************/
+
+
+SET NOCOUNT ON
+
+DECLARE @dbname VARCHAR(200)
+DECLARE @sql NVARCHAR(4000)
+DECLARE @path VARCHAR(100)
+DECLARE @bak_filename VARCHAR(100)
+DECLARE @diff_filename VARCHAR(100)
+DECLARE @StopAtTime DATETIME
+
+DECLARE @rc int
+DECLARE @POS INT
+DECLARE @DOT INT
+DECLARE @dash INT
+
+/***********  CHANGE THE FOLLOWING PARAMETERS !!!!!  ******************/
+
+SET @dbname = 'DBNAME'
+SET @StopAtTime = '2023-03-02 04:10:00.000'  --  Be sure this is server local time  
+SET @path = 'C:\SQL_Temp\AutomatedRestore\'
+SET @bak_filename = @path + 'DBNAME_backup_2024_02_25_200006_8367986.bak'
+SET @diff_filename = @path + 'DBNAME_backup_2024_03_02_000006_2549267.diff'
+
+/**********************************************************************/
+
+SET @sql = N'
+ALTER DATABASE ' +@dbname +
+' SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+waitfor delay ''00:00:03'';'
+print @sql
+
+SET @sql = N'
+RESTORE DATABASE ' +   @dbname + ' FROM DISK = ''' + @bak_filename +' '' WITH NORECOVERY, replace
+;
+RESTORE DATABASE ' +   @dbname + ' FROM DISK = ''' + @diff_filename +' '' WITH NORECOVERY
+;
+'
+
+print @sql
+
+DROP TABLE IF EXISTS #temp
+
+set @sql = 'dir ' + @path + '*.trn /B /s'
+
+
+create table #temp (id int identity(1,1), output nvarchar(255), interm varchar(200), filetimestamp datetime)
+insert #temp (output) exec @rc = master..xp_cmdshell @sql
+
+
+---------------------------
+
+SET @POS = (select top 1  CHARINDEX('2023',output, 0) + 1 from #temp)
+
+--select @pos pos
+
+SET @DOT = (select top 1 charindex('.',output,0 )+1 from #temp)
+SET @dash = (select top 1 charindex('_',reverse(output),0 ) from #temp)
+
+--select @dot dot
+--select @dash dash
+
+update #temp
+set interm =  replace(substring(output, @POS-1 ,    len(output) -@pos - @dash+2 ),'_','-') from #temp
+
+set @dash = (select top 1 charindex('-',reverse(interm)) from #temp)
+
+--select @dash dash
+
+update #temp
+set interm = substring(interm,1,len(interm)- @dash) +' '
++ substring(interm,len(interm)-@dash+2,2)+':'
++ substring(interm,len(interm)-@dash+4,2) 
++':'+ substring(interm,len(interm)-@dash+6,2) 
+where output is not null
+
+update #temp
+set filetimestamp = convert(datetime, interm) from #temp
+
+--select * from #temp
+
+--SELECT output FROM #temp WHERE filetimestamp < @StopAtTime
+--order by filetimestamp
+
+
+-------------------------
+DECLARE dbCursor CURSOR FOR                                                                                                                                                                                                                                    
+	SELECT output FROM #temp WHERE filetimestamp < @StopAtTime
+
+                                                                                                                                                                             
+OPEN dbCursor                                                                                                                                                                                                                                                  
+FETCH NEXT FROM dbCursor INTO @bak_filename                                                                                                                                                                                                                          
+WHILE (@@fetch_status <> -1)                                                                                                                                                                                                                                     
+BEGIN
+
+SET @sql = N'
+RESTORE LOG ' +   @dbname + ' FROM DISK = ''' + @bak_filename +''' WITH NORECOVERY
+;'
+	
+print @sql
+                                                                                                                                                                                                                                             
+	fetch next from dbCursor into @bak_filename                                                                                                                                                                                                                          
+end	                                                                                                                                                                                                                                                           
+close dbCursor                                                                                                                                                                                                                                                 
+deallocate dbCursor 
+
+
+set @bak_filename = (select top 1 output from #temp where filetimestamp > @StopAtTime)
+
+--select @bak_filename
+
+SET @sql = N'
+RESTORE LOG ' +   @dbname + ' FROM DISK = ''' + @bak_filename +''' WITH STOPAT = ''' + convert(varchar(100),@StopAtTime) + ''', RECOVERY 
+;'
+	
+print @sql
+
+
+select 'DONE - see message tab for restore script.  Review before you Execute' Comments
+
+--EXEC msdb.dbo.sp_send_dbmail
+--    @recipients = 'yourname.com',
+--    @body = 'Restore DB Completed',
+--    @subject = 'Restore DB Completed'
+
+--select max(output) from #temp
+
+print 'waitfor delay ''00:00:03'';'
+
+
+SET @sql = N'ALTER DATABASE ' +@dbname +
+' SET MULTI_USER WITH ROLLBACK IMMEDIATE;'
+
+print @sql
